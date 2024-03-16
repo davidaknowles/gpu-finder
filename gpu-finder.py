@@ -19,6 +19,8 @@ Creates a new compute engine instance and uses it to apply a caption to
 an image.
     https://cloud.google.com/compute/docs/tutorials/python-guide
 For more information, see the README.md under /compute.
+
+export GOOGLE_APPLICATION_CREDENTIALS=~/gpu-finder/ml4fg-class-bbee6fda3b50.json
 """
 
 import time
@@ -128,11 +130,14 @@ def create_instance(compute, project, config, zone_list):
             zone_config = zones[i]
             for j in range(compute_config['number_of_instances']):
                 print(f"Creating instance number {instances+1} of {compute_config['number_of_instances']} in {zone_config['zone']}, zone {zones_attempted+1} out of {len(zones)} attempted.")
-                image_project = compute_config['instance_config']['image_project']
-                image_family = compute_config['instance_config']['image_family']
-                image_response = compute.images().getFromFamily(
-                    project=image_project, family=image_family).execute()
-                source_disk_image = image_response['selfLink']
+                if 'image' in compute_config['instance_config']: 
+                    source_disk_image = compute_config['instance_config']['image']
+                else:
+                    image_project = compute_config['instance_config']['image_project']
+                    image_family = compute_config['instance_config']['image_family']
+                    image_response = compute.images().getFromFamily(
+                        project=image_project, family=image_family).execute()
+                    source_disk_image = image_response['selfLink']
                 instance_name = compute_config['instance_config']['name'] + '-' + str(instances+1) + '-' + zone_config['zone']
                 # Configure the machine
                 machine_type = f"zones/{zone_config['zone']}/machineTypes/{compute_config['instance_config']['machine_type']}"
@@ -248,7 +253,7 @@ def create_instance(compute, project, config, zone_list):
                         print("done.")
                         if 'error' in result:
                             error_results = result['error']['errors']
-                            if error_results[0]['code'] in ('QUOTA_EXCEEDED', 'ZONE_RESOURCE_POOL_EXHAUSTED_WITH_DETAILS'):
+                            if error_results[0]['code'] in ('QUOTA_EXCEEDED', 'ZONE_RESOURCE_POOL_EXHAUSTED', 'ZONE_RESOURCE_POOL_EXHAUSTED_WITH_DETAILS'):
                                 move_regions = 1
                                 print(Exception(result['error']))
                             else:
